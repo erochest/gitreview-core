@@ -4,39 +4,41 @@ module Github.Review.Filters
     , ascending
     , descending
     , offsetByDays
-    , after
-    , before
     , spanAfter
     , getAfterOrMinimum
     ) where
 
+import Data.List (sortBy)
+import Data.Ord
 import Data.Time
 import Github.Data
 
 sortByCommitDate :: [Commit] -> [Commit]
-sortByCommitDate = undefined
+sortByCommitDate = sortBy (descending (comparing getCommitDate))
 
 getCommitDate :: Commit -> UTCTime
-getCommitDate = undefined
+getCommitDate = fromGithubDate
+              . gitUserDate
+              . gitCommitCommitter
+              . commitGitCommit
 
 ascending :: (a -> b -> c) -> a -> b -> c
-ascending = undefined
+ascending = id
 
 descending :: (a -> b -> c) -> b -> a -> c
-descending = undefined
+descending = flip
 
-offsetByDays :: Integer -> IO UTCTime
-offsetByDays = undefined
-
-after :: UTCTime -> UTCTime -> Bool
-after = undefined
-
-before :: UTCTime -> UTCTime -> Bool
-before = undefined
+offsetByDays :: Integer -> UTCTime -> UTCTime
+offsetByDays days from =
+    fromInteger (days * 60 * 60 * 24) `addUTCTime` from
 
 spanAfter :: (a -> UTCTime) -> UTCTime -> [a] -> ([a], [a])
-spanAfter = undefined
+spanAfter getter breakOn = span ((breakOn <=) . getter)
 
 getAfterOrMinimum :: (a -> UTCTime) -> UTCTime -> Int -> [a] -> [a]
-getAfterOrMinimum = undefined
+getAfterOrMinimum getter breakOn minLength xs =
+        if length after >= minLength
+            then after
+            else take minLength xs
+    where after = fst $ spanAfter getter breakOn xs
 
