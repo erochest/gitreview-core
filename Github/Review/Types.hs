@@ -12,6 +12,7 @@ module Github.Review.Types
     where
 
 import           Control.Error
+import           Control.Monad.Trans (liftIO)
 import           Github.Data (Error(..), Repo, Commit)
 
 data GithubAccount = GithubUserName String
@@ -23,5 +24,5 @@ type GithubInteraction = EitherT Error IO
 type RepoCommit = (Repo, Commit)
 
 hoistGH :: IO (Either Error a) -> GithubInteraction a
-hoistGH = undefined
+hoistGH = (hoistEither =<<) . liftIO
 
