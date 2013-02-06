@@ -7,7 +7,9 @@ module Github.Review.Types
     ( GithubAccount(..)
     , GithubInteraction
     , RepoCommit
+    , runGithubInteraction
     , hoistGH
+    , liftIO
     )
     where
 
@@ -20,6 +22,9 @@ data GithubAccount = GithubUserName String
                    deriving (Show, Eq)
 
 type GithubInteraction = EitherT Error IO
+
+runGithubInteraction :: GithubInteraction a -> IO (Either Error a)
+runGithubInteraction = runEitherT
 
 type RepoCommit = (Repo, Commit)
 
