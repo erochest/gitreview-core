@@ -1,14 +1,10 @@
 module Github.Review
-    ( module Github.Review.Access
-    , module Github.Review.Filters
-    , module Github.Review.Types
+    ( module X
     )
     where
 
-import           Github.Review.Access
-import qualified Github.Review.Access
-import           Github.Review.Filters
-import qualified Github.Review.Filters
-import           Github.Review.Types
-import qualified Github.Review.Types
+import           Github.Review.Access  as X
+import           Github.Review.Filters as X
+import           Github.Review.Types   as X
+import           Github.Review.URI     as X
 

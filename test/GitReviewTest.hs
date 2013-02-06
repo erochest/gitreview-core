@@ -9,6 +9,7 @@ import qualified Data.Text as T
 import           Data.Time
 import           Github.Data
 import           Github.Review
+import           Network.URI
 import           Text.Printf
 
 org :: GithubAccount
@@ -27,7 +28,9 @@ shortLine Commit{..} =
             commitMessage = fromMaybe "<no commit message>"
                           . listToMaybe
                           $ lines gitCommitMessage
-        in  printf "%s [%s] %s <%s>" sha commitDate commitMessage commitUrl
+            url           = maybe "<invalid URI>" (show . toGithubUri)
+                          $ parseURI commitUrl
+        in  printf "%s [%s] %s <%s>" sha commitDate commitMessage url
 
 main :: IO ()
 main = do
