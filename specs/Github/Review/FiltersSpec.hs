@@ -1,4 +1,4 @@
-module Github.Review.FiltersSpec (filtersSpec) where
+module Github.Review.FiltersSpec (spec) where
 
 import Data.List (maximumBy)
 import Data.Ord (comparing)
@@ -9,8 +9,8 @@ import Github.Review.Arbitrary ()
 import Test.Hspec
 import Test.QuickCheck
 
-filtersSpec :: Spec
-filtersSpec =
+spec :: Spec
+spec =
     describe "Github.Review.Filters" $ do
         describe "sortByCommitDate" $
             it "should sort the earliest item first." $ property $ \cs ->
