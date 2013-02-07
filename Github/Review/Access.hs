@@ -5,8 +5,12 @@ module Github.Review.Access
     ( getAccountRepos
     , getRepoCommits
     , getRepoBranches
+    , getRepoBranches'
+    , branchesFor'
     , getBranchCommits
+    , getBranchCommits'
     , getAllRepoCommits
+    , getAllRepoCommits'
     , pickRandom
     ) where
 
@@ -30,20 +34,44 @@ getRepoCommits (Repo{..}) =
         hoistGH $ commitsFor (githubOwnerLogin repoOwner) repoName
 
 getRepoBranches :: Repo -> GithubInteraction [Branch]
-getRepoBranches Repo{..} =
-        hoistGH $ branchesFor (githubOwnerLogin repoOwner) repoName
+getRepoBranches = getRepoBranches' Nothing
+
+getRepoBranches' :: Maybe GithubAuth -> Repo -> GithubInteraction [Branch]
+getRepoBranches' auth Repo{..} =
+        hoistGH $ branchesFor' auth (githubOwnerLogin repoOwner) repoName
+
+branchesFor' :: Maybe GithubAuth
+             -> String
+             -> String
+             -> IO (Either Error [Branch])
+branchesFor' auth userName repoName =
+        githubGet' auth ["repos", userName, repoName, "branches"]
 
 getBranchCommits :: Repo -> Branch -> Int -> GithubInteraction [Commit]
-getBranchCommits Repo{..} Branch{..} pageSize =
-        hoistGH . githubGetWithQueryString ["repos", user, repoName, "commits"]
+getBranchCommits = getBranchCommits' Nothing
+
+getBranchCommits' :: Maybe GithubAuth
+                  -> Repo
+                  -> Branch
+                  -> Int
+                  -> GithubInteraction [Commit]
+getBranchCommits' auth Repo{..} Branch{..} pageSize =
+        hoistGH . githubGetWithQueryString'
+                            auth ["repos", user, repoName, "commits"]
                 $    "sha=" <> branchCommitSha branchCommit
                   <> "&per_page=" <> show pageSize
         where user = githubOwnerLogin repoOwner
 
 getAllRepoCommits :: Repo -> Int -> GithubInteraction [Commit]
-getAllRepoCommits repo branchPageSize =
-        concat <$> (mapM getBranchCommits' =<< getRepoBranches repo)
-        where getBranchCommits' = flip (getBranchCommits repo) branchPageSize
+getAllRepoCommits = getAllRepoCommits' Nothing
+
+getAllRepoCommits' :: Maybe GithubAuth
+                   -> Repo
+                   -> Int
+                   -> GithubInteraction [Commit]
+getAllRepoCommits' auth repo branchPageSize =
+        concat <$> (mapM getbc =<< getRepoBranches' auth repo)
+        where getbc = flip (getBranchCommits' auth repo) branchPageSize
 
 pickRandom :: [a] -> EitherT T.Text IO a
 pickRandom [] = left "No items to pick a random element from."

@@ -4,12 +4,15 @@ module Main where
 
 import           Control.Applicative
 import           Control.Error
+import qualified Data.ByteString.Char8 as BS
 import           Data.Monoid
 import qualified Data.Text as T
 import           Data.Time
+import           Github.Api
 import           Github.Data
 import           Github.Review
 import           Network.URI
+import           System.Environment
 import           Text.Printf
 
 org :: GithubAccount
@@ -37,17 +40,25 @@ shortLine Commit{..} =
 
 main :: IO ()
 main = do
-        item <- runGithubInteraction $ do
+        user   <- getEnv "GITHUB_USER"
+        passwd <- getEnv "GITHUB_PASSWD"
+        let auth       = GithubBasicAuth (BS.pack user) (BS.pack passwd)
+            getCommits = getAllRepoCommits' (Just auth)
+
+        item   <- runGithubInteraction $ do
             repos      <- getAccountRepos org
             limit      <- liftIO $ offsetByDays samplePeriod <$> getCurrentTime
             allCommits <-  sortByCommitDate . concat
-                       <$> mapM (`getAllRepoCommits` sampleMin) repos
-            liftIO $ putStrLn "Add commits."
-            liftIO $ mapM_ (putStrLn . shortLine) allCommits
+                       <$> mapM (`getCommits` sampleMin) repos
+
+            liftIO $  putStrLn "Add commits."
+                   >> mapM_ (putStrLn . shortLine) allCommits
             let limited = getAfterOrMinimum getCommitDate limit sampleMin allCommits
-            liftIO $ putStrLn "\nShort list."
-            liftIO $ mapM_ (putStrLn . shortLine) limited
+
+            liftIO $  putStrLn "\nShort list."
+                   >> mapM_ (putStrLn . shortLine) limited
             bimapEitherT (UserError . T.unpack) id $ pickRandom limited
+
         case item of
             Right x -> putStrLn (shortLine x) >> print x
             Left e  -> putStrLn $ "ERROR: " <> show e
