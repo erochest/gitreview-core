@@ -1,15 +1,20 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Github.Review.Access 
+module Github.Review.Access
     ( getAccountRepos
     , getRepoCommits
+    , getRepoBranches
+    , getBranchCommits
+    , getAllRepoCommits
     , pickRandom
     ) where
 
 import           Data.Monoid hiding (All)
 import qualified Data.Text as T
+import           Control.Applicative
 import           Control.Error
+import           Github.Api
 import           Github.Data
 import           Github.Repos
 import           Github.Repos.Commits
@@ -23,6 +28,22 @@ getAccountRepos (GithubOrgName name)  = hoistGH $ organizationRepos name
 getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
         hoistGH $ commitsFor (githubOwnerLogin repoOwner) repoName
+
+getRepoBranches :: Repo -> GithubInteraction [Branch]
+getRepoBranches Repo{..} =
+        hoistGH $ branchesFor (githubOwnerLogin repoOwner) repoName
+
+getBranchCommits :: Repo -> Branch -> Int -> GithubInteraction [Commit]
+getBranchCommits Repo{..} Branch{..} pageSize =
+        hoistGH . githubGetWithQueryString ["repos", user, repoName, "commits"]
+                $    "sha=" <> branchCommitSha branchCommit
+                  <> "&per_page=" <> show pageSize
+        where user = githubOwnerLogin repoOwner
+
+getAllRepoCommits :: Repo -> Int -> GithubInteraction [Commit]
+getAllRepoCommits repo branchPageSize =
+        concat <$> (mapM getBranchCommits' =<< getRepoBranches repo)
+        where getBranchCommits' = flip (getBranchCommits repo) branchPageSize
 
 pickRandom :: [a] -> EitherT T.Text IO a
 pickRandom [] = left "No items to pick a random element from."

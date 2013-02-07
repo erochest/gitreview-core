@@ -18,6 +18,9 @@ org = GithubOrgName "scholarslab"
 samplePeriod :: Integer
 samplePeriod = 1
 
+sampleMin :: Int
+sampleMin = 10
+
 shortLine :: Commit -> String
 shortLine Commit{..} =
         let GitCommit{..} = commitGitCommit
@@ -38,10 +41,10 @@ main = do
             repos      <- getAccountRepos org
             limit      <- liftIO $ offsetByDays samplePeriod <$> getCurrentTime
             allCommits <-  sortByCommitDate . concat
-                       <$> mapM getRepoCommits repos
+                       <$> mapM (`getAllRepoCommits` sampleMin) repos
             liftIO $ putStrLn "Add commits."
             liftIO $ mapM_ (putStrLn . shortLine) allCommits
-            let limited = getAfterOrMinimum getCommitDate limit 10 allCommits
+            let limited = getAfterOrMinimum getCommitDate limit sampleMin allCommits
             liftIO $ putStrLn "\nShort list."
             liftIO $ mapM_ (putStrLn . shortLine) limited
             bimapEitherT (UserError . T.unpack) id $ pickRandom limited
