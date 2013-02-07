@@ -14,6 +14,8 @@ module Github.Review.Access
     , pickRandom
     ) where
 
+import           Data.Hashable
+import qualified Data.HashMap.Strict as M
 import           Data.Monoid hiding (All)
 import qualified Data.Text as T
 import           Control.Applicative
@@ -70,8 +72,13 @@ getAllRepoCommits' :: Maybe GithubAuth
                    -> Int
                    -> GithubInteraction [Commit]
 getAllRepoCommits' auth repo branchPageSize =
-        concat <$> (mapM getbc =<< getRepoBranches' auth repo)
+        uniquifyOn commitSha . concat <$>
+                    (mapM getbc =<< getRepoBranches' auth repo)
         where getbc = flip (getBranchCommits' auth repo) branchPageSize
+
+uniquifyOn :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a]
+uniquifyOn keyFn xs = M.elems . M.fromList $ map toPair xs
+        where toPair x = (keyFn x, x)
 
 pickRandom :: [a] -> EitherT T.Text IO a
 pickRandom [] = left "No items to pick a random element from."
