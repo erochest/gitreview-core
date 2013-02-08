@@ -19,13 +19,13 @@ library
                      , Github.Review.Filters
                      , Github.Review.URI
   build-depends:       base                 == 4.5.*
-                     , errors               == 1.3.*
+                     , errors               == 1.4.*
                      , github               == 0.5.*
                      , time                 == 1.4.*
                      , mtl                  == 2.1.*
                      , mwc-random           == 0.12.*
                      , text                 == 0.11.*
-                     , network              == 2.3.*
+                     , network              == 2.4.*
                      , unordered-containers == 0.2.*
                      , hashable             == 1.2.*
 
@@ -39,7 +39,7 @@ test-suite gitreview-core-specs
                        , QuickCheck == 2.5.*
                        , github     == 0.5.*
                        , time       == 1.4.*
-                       , network    == 2.3.*
+                       , network    == 2.4.*
 
 test-suite gitreview-test
   type:                exitcode-stdio-1.0
@@ -48,10 +48,10 @@ test-suite gitreview-test
   build-depends:         base       == 4.5.*
                        , gitreview-core
                        , github     == 0.5.*
-                       , errors     == 1.3.*
+                       , errors     == 1.4.*
                        , time       == 1.4.*
                        , text       == 0.11.*
-                       , network    == 2.3.*
+                       , network    == 2.4.*
                        , bytestring == 0.9.*
 
 source-repository this
