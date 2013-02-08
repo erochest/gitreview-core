@@ -1,5 +1,8 @@
 {-# LANGUAGE RecordWildCards #-}
 
+-- | This assumes environment variables for the Github authentication
+-- information, `GITHUB_USER` and `GITHUB_PASSWD`.
+
 module Main where
 
 import           Control.Applicative
@@ -60,6 +63,6 @@ main = do
             bimapEitherT (UserError . T.unpack) id $ pickRandom limited
 
         case item of
-            Right x -> putStrLn (shortLine x) >> print x
+            Right x -> putStrLn "" >> putStrLn (shortLine x) >> print x
             Left e  -> putStrLn $ "ERROR: " <> show e
 
