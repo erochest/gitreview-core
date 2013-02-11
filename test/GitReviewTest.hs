@@ -27,8 +27,8 @@ samplePeriod = 1
 sampleMin :: Int
 sampleMin = 10
 
-shortLine :: Commit -> String
-shortLine Commit{..} =
+shortLine :: RepoCommit -> String
+shortLine (Repo{..}, Commit{..}) =
         let GitCommit{..} = commitGitCommit
             sha           = take 8 commitSha
             commitDate    = show
@@ -39,7 +39,9 @@ shortLine Commit{..} =
                           $ lines gitCommitMessage
             url           = maybe "<invalid URI>" (show . toGithubUri)
                           $ parseURI commitUrl
-        in  printf "%s [%s] %s <%s>" sha commitDate commitMessage url
+        in  printf "%s/%s: %s [%s] %s <%s>"
+                   (githubOwnerLogin repoOwner) repoName sha commitDate
+                   commitMessage url
 
 main :: IO ()
 main = do
@@ -56,7 +58,8 @@ main = do
 
             liftIO $  putStrLn "Add commits."
                    >> mapM_ (putStrLn . shortLine) allCommits
-            let limited = getAfterOrMinimum getCommitDate limit sampleMin allCommits
+            let limited = getAfterOrMinimum (getCommitDate . snd) limit
+                                            sampleMin allCommits
 
             liftIO $  putStrLn "\nShort list."
                    >> mapM_ (putStrLn . shortLine) limited

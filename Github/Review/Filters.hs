@@ -1,3 +1,4 @@
+
 module Github.Review.Filters
     ( sortByCommitDate
     , getCommitDate
@@ -8,13 +9,16 @@ module Github.Review.Filters
     , getAfterOrMinimum
     ) where
 
+
 import Data.List (sortBy)
 import Data.Ord
 import Data.Time
 import Github.Data
+import Github.Review.Types
 
-sortByCommitDate :: [Commit] -> [Commit]
-sortByCommitDate = sortBy (descending (comparing getCommitDate))
+
+sortByCommitDate :: [RepoCommit] -> [RepoCommit]
+sortByCommitDate = sortBy (descending (comparing (getCommitDate . snd)))
 
 getCommitDate :: Commit -> UTCTime
 getCommitDate = fromGithubDate

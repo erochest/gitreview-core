@@ -8,6 +8,33 @@ import Github.Data
 import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Gen
 
+instance Arbitrary Repo where
+    arbitrary = Repo <$> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+                     <*> arbitrary
+
 instance Arbitrary Commit where
     arbitrary = Commit <$> arbitrary 
                        <*> arbitrary

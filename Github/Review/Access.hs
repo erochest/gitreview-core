@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 
 module Github.Review.Access
     ( getAccountRepos
@@ -64,15 +65,15 @@ getBranchCommits' auth Repo{..} Branch{..} pageSize =
                   <> "&per_page=" <> show pageSize
         where user = githubOwnerLogin repoOwner
 
-getAllRepoCommits :: Repo -> Int -> GithubInteraction [Commit]
+getAllRepoCommits :: Repo -> Int -> GithubInteraction [RepoCommit]
 getAllRepoCommits = getAllRepoCommits' Nothing
 
 getAllRepoCommits' :: Maybe GithubAuth
                    -> Repo
                    -> Int
-                   -> GithubInteraction [Commit]
+                   -> GithubInteraction [RepoCommit]
 getAllRepoCommits' auth repo branchPageSize =
-        uniquifyOn commitSha . concat <$>
+        map (repo,) . uniquifyOn commitSha . concat <$>
                     (mapM getbc =<< getRepoBranches' auth repo)
         where getbc = flip (getBranchCommits' auth repo) branchPageSize
 

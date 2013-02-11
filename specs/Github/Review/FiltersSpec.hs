@@ -15,9 +15,10 @@ spec =
         describe "sortByCommitDate" $
             it "should sort the earliest item first." $ property $ \cs ->
                 case sortByCommitDate cs of
-                    (c:_) -> (commitSha c ==)
+                    (c:_) -> (commitSha (snd c) ==)
                            . commitSha
-                           $ maximumBy (comparing getCommitDate) cs
+                           . snd
+                           $ maximumBy (comparing (getCommitDate . snd)) cs
                     []    -> True
         describe "offsetByDays" $ do
             it "should subtract one day." $ 
