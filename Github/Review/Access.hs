@@ -20,6 +20,7 @@ import qualified Data.HashMap.Strict as M
 import           Data.Monoid hiding (All)
 import qualified Data.Text as T
 import           Control.Applicative
+import           Control.Concurrent (threadDelay)
 import           Control.Error
 import           Github.Api
 import           Github.Data
@@ -27,6 +28,10 @@ import           Github.Repos
 import           Github.Repos.Commits
 import           Github.Review.Types
 import           System.Random.MWC
+
+
+maybePause :: Maybe Int -> IO ()
+maybePause = maybe (return ()) threadDelay
 
 getAccountRepos :: GithubAccount -> GithubInteraction [Repo]
 getAccountRepos (GithubUserName name) = hoistGH $ userRepos name All
@@ -36,46 +41,50 @@ getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
         hoistGH $ commitsFor (githubOwnerLogin repoOwner) repoName
 
-getRepoBranches :: Repo -> GithubInteraction [Branch]
+getRepoBranches :: Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches = getRepoBranches' Nothing
 
-getRepoBranches' :: Maybe GithubAuth -> Repo -> GithubInteraction [Branch]
-getRepoBranches' auth Repo{..} =
-        hoistGH $ branchesFor' auth (githubOwnerLogin repoOwner) repoName
+getRepoBranches' :: Maybe GithubAuth -> Maybe Int -> Repo -> GithubInteraction [Branch]
+getRepoBranches' auth pause Repo{..} =
+        hoistGH $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName
 
 branchesFor' :: Maybe GithubAuth
+             -> Maybe Int
              -> String
              -> String
              -> IO (Either Error [Branch])
-branchesFor' auth userName repoName =
-        githubGet' auth ["repos", userName, repoName, "branches"]
+branchesFor' auth pause userName repoName =
+        githubGet' auth ["repos", userName, repoName, "branches"] <* maybePause pause
 
-getBranchCommits :: Repo -> Branch -> Int -> GithubInteraction [Commit]
+getBranchCommits :: Maybe Int -> Repo -> Branch -> Int -> GithubInteraction [Commit]
 getBranchCommits = getBranchCommits' Nothing
 
 getBranchCommits' :: Maybe GithubAuth
+                  -> Maybe Int
                   -> Repo
                   -> Branch
                   -> Int
                   -> GithubInteraction [Commit]
-getBranchCommits' auth Repo{..} Branch{..} pageSize =
-        hoistGH . githubGetWithQueryString'
-                            auth ["repos", user, repoName, "commits"]
-                $    "sha=" <> branchCommitSha branchCommit
-                  <> "&per_page=" <> show pageSize
-        where user = githubOwnerLogin repoOwner
+getBranchCommits' auth pause Repo{..} Branch{..} pageSize =
+        hoistGH (getCommits <* maybePause pause)
+        where user       = githubOwnerLogin repoOwner
+              getCommits = githubGetWithQueryString'
+                                    auth ["repos", user, repoName, "commits"]
+                         $    "sha=" <> branchCommitSha branchCommit
+                           <> "&per_page=" <> show pageSize
 
-getAllRepoCommits :: Repo -> Int -> GithubInteraction [RepoCommit]
+getAllRepoCommits :: Maybe Int -> Repo -> Int -> GithubInteraction [RepoCommit]
 getAllRepoCommits = getAllRepoCommits' Nothing
 
 getAllRepoCommits' :: Maybe GithubAuth
+                   -> Maybe Int
                    -> Repo
                    -> Int
                    -> GithubInteraction [RepoCommit]
-getAllRepoCommits' auth repo branchPageSize =
+getAllRepoCommits' auth pause repo branchPageSize =
         map (repo,) . uniquifyOn commitSha . concat <$>
-                    (mapM getbc =<< getRepoBranches' auth repo)
-        where getbc = flip (getBranchCommits' auth repo) branchPageSize
+                    (mapM getbc =<< getRepoBranches' auth pause repo)
+        where getbc = flip (getBranchCommits' auth pause repo) branchPageSize
 
 uniquifyOn :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a]
 uniquifyOn keyFn xs = M.elems . M.fromList $ map toPair xs
