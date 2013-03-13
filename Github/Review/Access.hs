@@ -34,19 +34,23 @@ maybePause :: Maybe Int -> IO ()
 maybePause = maybe (return ()) threadDelay
 
 getAccountRepos :: GithubAccount -> GithubInteraction [Repo]
-getAccountRepos (GithubUserName name) = hoistGH $ userRepos name All
-getAccountRepos (GithubOrgName name)  = hoistGH $ organizationRepos name
+getAccountRepos (GithubUserName name) =
+        logIO "userRepos" $ userRepos name All
+getAccountRepos (GithubOrgName name)  =
+        logIO "orgnaizationRepos" $ organizationRepos name
 
 getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
-        hoistGH $ commitsFor (githubOwnerLogin repoOwner) repoName
+        logIO task $ commitsFor (githubOwnerLogin repoOwner) repoName
+        where task = "commitsFor " <> textShow repoOwner
 
 getRepoBranches :: Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches = getRepoBranches' Nothing
 
 getRepoBranches' :: Maybe GithubAuth -> Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches' auth pause Repo{..} =
-        hoistGH $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName
+        logIO task $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName
+        where task = "branchesFor " <> textShow repoOwner
 
 branchesFor' :: Maybe GithubAuth
              -> Maybe Int
@@ -66,12 +70,13 @@ getBranchCommits' :: Maybe GithubAuth
                   -> Int
                   -> GithubInteraction [Commit]
 getBranchCommits' auth pause Repo{..} Branch{..} pageSize =
-        hoistGH (getCommits <* maybePause pause)
+        logIO task (getCommits <* maybePause pause)
         where user       = githubOwnerLogin repoOwner
               getCommits = githubGetWithQueryString'
                                     auth ["repos", user, repoName, "commits"]
                          $    "sha=" <> branchCommitSha branchCommit
                            <> "&per_page=" <> show pageSize
+              task       = "getCommits " <> textShow repoOwner
 
 getAllRepoCommits :: Maybe Int -> Repo -> Int -> GithubInteraction [RepoCommit]
 getAllRepoCommits = getAllRepoCommits' Nothing
