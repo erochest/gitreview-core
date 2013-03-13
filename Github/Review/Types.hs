@@ -9,6 +9,7 @@ module Github.Review.Types
     , RepoCommit
     , runGithubInteraction
     , hoistGH
+    , hoistEitherT
     , lift
     , liftIO
     , logTask
@@ -40,6 +41,9 @@ type RepoCommit = (Repo, Commit)
 
 hoistGH :: IO (Either Error a) -> GithubInteraction a
 hoistGH = (hoistEither =<<) . lift . liftIO
+
+hoistEitherT :: EitherT Error IO a -> GithubInteraction a
+hoistEitherT = hoistGH . runEitherT
 
 logTask :: TaskName -> GithubInteraction ()
 logTask = lift . tell . singleton

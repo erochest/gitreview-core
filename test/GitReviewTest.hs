@@ -66,7 +66,7 @@ main = do
 
             liftIO $  putStrLn "\nShort list."
                    >> mapM_ (putStrLn . shortLine) limited
-            hoistGH . runEitherT . bimapEitherT (UserError . T.unpack) id $ pickRandom limited
+            hoistEitherT . bimapEitherT (UserError . T.unpack) id $ pickRandom limited
 
         case item of
             Right x -> putStrLn "" >> putStrLn (shortLine x) >> print x
