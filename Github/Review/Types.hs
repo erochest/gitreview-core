@@ -9,25 +9,44 @@ module Github.Review.Types
     , RepoCommit
     , runGithubInteraction
     , hoistGH
+    , lift
     , liftIO
+    , logTask
+    , logTasks
+    , logIO
     )
     where
 
 import           Control.Error
 import           Control.Monad.Trans (liftIO)
+import           Control.Monad.Writer
+import           Data.DList
+import qualified Data.Text as T
 import           Github.Data (Error(..), Repo, Commit)
 
 data GithubAccount = GithubUserName String
                    | GithubOrgName String
                    deriving (Show, Eq)
 
-type GithubInteraction = EitherT Error IO
+type TaskName = T.Text
+type TaskList = DList TaskName
+type GithubInteraction = EitherT Error (WriterT TaskList IO)
 
-runGithubInteraction :: GithubInteraction a -> IO (Either Error a)
-runGithubInteraction = runEitherT
+runGithubInteraction :: GithubInteraction a
+                     -> IO (Either Error a, TaskList)
+runGithubInteraction = runWriterT . runEitherT
 
 type RepoCommit = (Repo, Commit)
 
 hoistGH :: IO (Either Error a) -> GithubInteraction a
-hoistGH = (hoistEither =<<) . liftIO
+hoistGH = (hoistEither =<<) . lift . liftIO
+
+logTask :: TaskName -> GithubInteraction ()
+logTask = lift . tell . singleton
+
+logTasks :: [TaskName] -> GithubInteraction ()
+logTasks = lift . tell . fromList
+
+logIO :: TaskName -> IO (Either Error a) -> GithubInteraction a
+logIO task a = logTask task >> hoistGH a
 
