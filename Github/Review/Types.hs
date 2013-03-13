@@ -5,6 +5,8 @@
 
 module Github.Review.Types
     ( GithubAccount(..)
+    , TaskName
+    , TaskList
     , GithubInteraction
     , RepoCommit
     , runGithubInteraction
