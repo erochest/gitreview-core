@@ -54,6 +54,8 @@ test-suite gitreview-test
                        , text       == 0.11.*
                        , network    == 2.4.*
                        , bytestring == 0.9.*
+                       , dlist      == 0.5
+                       , mtl        == 2.1.*
 
 source-repository this
   type:                git

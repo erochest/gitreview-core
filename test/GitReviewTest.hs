@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TupleSections   #-}
 
 -- | This assumes environment variables for the Github authentication
 -- information, `GITHUB_USER` and `GITHUB_PASSWD`.
@@ -7,7 +8,9 @@ module Main where
 
 import           Control.Applicative
 import           Control.Error
+import           Control.Monad.Writer
 import qualified Data.ByteString.Char8 as BS
+import           Data.DList (toList)
 import           Data.Monoid
 import qualified Data.Text as T
 import           Data.Time
@@ -48,9 +51,9 @@ main = do
         user   <- getEnv "GITHUB_USER"
         passwd <- getEnv "GITHUB_PASSWD"
         let auth       = GithubBasicAuth (BS.pack user) (BS.pack passwd)
-            getCommits = getAllRepoCommits' (Just auth)
+            getCommits = getAllRepoCommits' (Just auth) Nothing
 
-        item   <- runGithubInteraction $ do
+        (item, log) <- runGithubInteraction $ do
             repos      <- getAccountRepos org
             limit      <- liftIO $ offsetByDays samplePeriod <$> getCurrentTime
             allCommits <-  sortByCommitDate . concat
@@ -63,9 +66,9 @@ main = do
 
             liftIO $  putStrLn "\nShort list."
                    >> mapM_ (putStrLn . shortLine) limited
-            bimapEitherT (UserError . T.unpack) id $ pickRandom limited
+            hoistGH . runEitherT . bimapEitherT (UserError . T.unpack) id $ pickRandom limited
 
         case item of
             Right x -> putStrLn "" >> putStrLn (shortLine x) >> print x
-            Left e  -> putStrLn $ "ERROR: " <> show e
+            Left e  -> putStrLn $ "ERROR @" <> T.unpack (last $ toList log)  <> ": " <> show e
 
