@@ -35,14 +35,14 @@ maybePause = maybe (return ()) threadDelay
 
 getAccountRepos :: GithubAccount -> GithubInteraction [Repo]
 getAccountRepos (GithubUserName name) =
-        logIO "userRepos" $ userRepos name All
+        logIO ("userRepos " <> T.pack name) $ userRepos name All
 getAccountRepos (GithubOrgName name)  =
-        logIO "orgnaizationRepos" $ organizationRepos name
+        logIO ("orgnaizationRepos " <> T.pack name) $ organizationRepos name
 
 getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
         logIO task $ commitsFor (githubOwnerLogin repoOwner) repoName
-        where task = "commitsFor " <> textShow repoOwner
+        where task = "commitsFor " <> T.pack repoName
 
 getRepoBranches :: Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches = getRepoBranches' Nothing
@@ -50,7 +50,7 @@ getRepoBranches = getRepoBranches' Nothing
 getRepoBranches' :: Maybe GithubAuth -> Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches' auth pause Repo{..} =
         logIO task $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName
-        where task = "branchesFor " <> textShow repoOwner
+        where task = "branchesFor " <> T.pack repoName
 
 branchesFor' :: Maybe GithubAuth
              -> Maybe Int
@@ -76,7 +76,7 @@ getBranchCommits' auth pause Repo{..} Branch{..} pageSize =
                                     auth ["repos", user, repoName, "commits"]
                          $    "sha=" <> branchCommitSha branchCommit
                            <> "&per_page=" <> show pageSize
-              task       = "getCommits " <> textShow repoOwner
+              task       = "getCommits " <> T.pack repoName <> "/" <> T.pack branchName
 
 getAllRepoCommits :: Maybe Int -> Repo -> Int -> GithubInteraction [RepoCommit]
 getAllRepoCommits = getAllRepoCommits' Nothing
