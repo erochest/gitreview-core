@@ -1,5 +1,5 @@
 name:                gitreview-core
-version:             0.2.3.0
+version:             0.2.4.0
 synopsis:            A library for randomly picking a Github commit.
 description:         Basically, it just queries github for commits and returns a recent random one.
 homepage:            https://github.com/erochest/gitreview-core
