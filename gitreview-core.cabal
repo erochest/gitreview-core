@@ -18,6 +18,7 @@ library
                      , Github.Review.Access
                      , Github.Review.Filters
                      , Github.Review.URI
+                     , Paths_gitreview_core
   build-depends:       base                 == 4.5.*
                      , errors               == 1.4.*
                      , github               == 0.5.*
