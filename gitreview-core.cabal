@@ -30,6 +30,7 @@ library
                      , unordered-containers == 0.2.*
                      , hashable             == 1.2.*
                      , dlist                == 0.5
+                     , retry                == 0.1.*
 
 test-suite gitreview-core-specs
   type:                exitcode-stdio-1.0
