@@ -9,12 +9,14 @@
 module Github.Review.Types
     ( RetryT
     , runRetryT
+    , execRetryT
     , GithubAccount(..)
     , TaskName
     , TaskList
     , GithubInteraction
     , RepoCommit
     , runGithubInteraction
+    , insertEither
     , hoistGH
     , hoistEitherT
     , lift
