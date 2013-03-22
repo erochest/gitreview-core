@@ -24,6 +24,7 @@ module Github.Review.Types
     , logTask
     , logTasks
     , logIO
+    , ghUserError
     )
     where
 
@@ -121,4 +122,7 @@ logTasks = lift . tell . fromList
 
 logIO :: TaskName -> IO (Either Error a) -> GithubInteraction a
 logIO task a = logTask task >> hoistGH a
+
+ghUserError :: String -> GithubInteraction a
+ghUserError = hoistEitherT . left . UserError
 
