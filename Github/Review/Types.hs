@@ -10,6 +10,9 @@ module Github.Review.Types
     ( RetryT
     , runRetryT
     , execRetryT
+    , retry
+    , (>>=*)
+    , (>>*)
     , GithubAccount(..)
     , TaskName
     , TaskList
@@ -55,16 +58,25 @@ newtype RetryT e m a = Retrier
 execRetryT :: RetrySettings -> RetryT e m a -> m (Either e a)
 execRetryT s = runEitherT . flip runReaderT s . runRetryT
 
-bindRetry :: (Monad m, MonadIO m)
+bindRetry :: Monad m
           => RetryT e m a
           -> (a -> RetryT e m b)
           -> RetryT e m b
-x `bindRetry` f =
-        Retrier $ ReaderT $ \s -> do
-            x' <- lift . retrying s isLeft $ runEitherT (runReaderT (runRetryT x) s)
-            case x' of
-                Right r -> runReaderT (runRetryT (f r)) s
-                Left l  -> left l
+x `bindRetry` f = Retrier $ runRetryT . f =<< runRetryT x
+
+retry :: (Monad m, MonadIO m) => RetryT e m b -> RetryT e m b
+retry m = Retrier $ ReaderT $ \s ->
+         EitherT . retrying s isLeft $ runEitherT (runReaderT (runRetryT m) s)
+
+(>>=*) :: (Monad m, MonadIO m)
+       => RetryT e m a -> (a -> RetryT e m b) -> RetryT e m b
+x >>=* f =
+        Retrier $ ReaderT $ \r -> do
+            x' <- runReaderT (runRetryT x) r
+            EitherT . retrying r isLeft $ runEitherT (runReaderT (runRetryT (f x')) r)
+
+(>>*) :: (Monad m, MonadIO m) => RetryT e m a -> RetryT e m b -> RetryT e m b
+x >>* y = x >>=* const y
 
 insertRetry :: Monad m => a -> RetryT e m a
 insertRetry = Retrier . return
@@ -91,11 +103,6 @@ instance (Monad m, Functor m) => Applicative (RetryT e m) where
             f' <- runRetryT f
             x' <- runRetryT x
             return $ f' x'
-
-instance (Monad m, MonadIO m, MonadReader RetrySettings m) => MonadReader RetrySettings (RetryT e m) where
-        ask     = lift ask
-        local f = Retrier . local f . runRetryT
-        reader  = lift . reader
 
 type GithubInteraction = RetryT Error (WriterT TaskList IO)
 
