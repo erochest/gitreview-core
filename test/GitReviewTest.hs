@@ -53,7 +53,7 @@ main = do
         let auth       = GithubBasicAuth (BS.pack user) (BS.pack passwd)
             getCommits = getAllRepoCommits' (Just auth) Nothing
 
-        (item, log) <- runGithubInteraction $ do
+        (item, log) <- runGithubInteraction 3 False 50 $ do
             repos      <- getAccountRepos org
             limit      <- liftIO $ offsetByDays samplePeriod <$> getCurrentTime
             allCommits <-  sortByCommitDate . concat
