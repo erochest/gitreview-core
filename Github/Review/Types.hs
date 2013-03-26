@@ -110,7 +110,7 @@ runGithubInteraction :: Int -> Bool -> Int -> GithubInteraction a
                      -> IO (Either Error a, TaskList)
 runGithubInteraction numRetries backoff baseDelay =
         runWriterT . execRetryT settings
-        where settings = RetrySettings numRetries backoff baseDelay
+        where settings = RetrySettings (limitedRetries numRetries) backoff baseDelay
 
 type RepoCommit = (Repo, Commit)
 
