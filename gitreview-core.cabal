@@ -31,6 +31,7 @@ library
                      , hashable             == 1.2.*
                      , dlist                == 0.5
                      , retry                == 0.2.*
+                     , lens                 == 3.9.*
 
 test-suite gitreview-core-specs
   type:                exitcode-stdio-1.0
