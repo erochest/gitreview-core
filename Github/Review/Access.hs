@@ -35,13 +35,13 @@ maybePause = maybe (return ()) threadDelay
 
 getAccountRepos :: GithubAccount -> GithubInteraction [Repo]
 getAccountRepos (GithubUserName name) =
-        retry (logIO ("userRepos " <> T.pack name) $ userRepos name All)
+        reacc [] (logIO ("userRepos " <> T.pack name) $ userRepos name All)
 getAccountRepos (GithubOrgName name)  =
-        retry (logIO ("orgnaizationRepos " <> T.pack name) $ organizationRepos name)
+        reacc [] (logIO ("orgnaizationRepos " <> T.pack name) $ organizationRepos name)
 
 getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
-        retry (logIO task $ commitsFor (githubOwnerLogin repoOwner) repoName)
+        reacc [] (logIO task $ commitsFor (githubOwnerLogin repoOwner) repoName)
         where task = "commitsFor " <> T.pack repoName
 
 getRepoBranches :: Maybe Int -> Repo -> GithubInteraction [Branch]
@@ -49,7 +49,7 @@ getRepoBranches = getRepoBranches' Nothing
 
 getRepoBranches' :: Maybe GithubAuth -> Maybe Int -> Repo -> GithubInteraction [Branch]
 getRepoBranches' auth pause Repo{..} =
-        retry (logIO task $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName)
+        reacc [] (logIO task $ branchesFor' auth pause (githubOwnerLogin repoOwner) repoName)
         where task = "branchesFor " <> T.pack repoName
 
 branchesFor' :: Maybe GithubAuth
@@ -70,7 +70,7 @@ getBranchCommits' :: Maybe GithubAuth
                   -> Int
                   -> GithubInteraction [Commit]
 getBranchCommits' auth pause Repo{..} Branch{..} pageSize =
-        retry (logIO task (getCommits <* maybePause pause))
+        reacc [] (logIO task (getCommits <* maybePause pause))
         where user       = githubOwnerLogin repoOwner
               getCommits = githubGetWithQueryString'
                                     auth ["repos", user, repoName, "commits"]

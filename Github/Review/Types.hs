@@ -8,18 +8,20 @@
 -- that it picks a random, recent commit.
 
 module Github.Review.Types
-    ( RetryT
-    , runRetryT
-    , execRetryT
-    , retry
-    , (>>=*)
-    , (>>*)
-    , GithubAccount(..)
+    ( GithubAccount(..)
     , TaskName
     , TaskList
-    , GithubInteraction
     , RepoCommit
+    , GithubInteraction
+    , evalGithubInteraction
+    , GithubInteractionT(..)
+    , evalGithubInteractionT
     , runGithubInteraction
+    , retry
+    , accum
+    , reacc
+    , (>>=*)
+    , (>>*)
     , insertEither
     , hoistGH
     , hoistEitherT
@@ -35,12 +37,12 @@ module Github.Review.Types
 import           Control.Applicative
 import           Control.Error
 import           Control.Lens
-import           Control.Monad.Reader
+import           Control.Monad.RWS
 import           Control.Monad.Trans
-import           Control.Monad.Writer
 import qualified Control.Retry as R
 import           Data.DList
 import           Data.Functor
+import           Data.Functor.Identity
 import           Data.Monoid
 import qualified Data.Text as T
 import           Github.Data (Error(..), Repo, Commit)
@@ -52,25 +54,27 @@ data GithubAccount = GithubUserName String
 type TaskName = T.Text
 type TaskList = DList TaskName
 
-data RetryTConfig = RetryTC
+type RepoCommit = (Repo, Commit)
+
+data GitIntConfig = GitC
                   { retryAccumErrors :: Int
                   , retrySettings    :: R.RetrySettings
                   }
 
-accumErrors :: Lens RetryTConfig RetryTConfig Int Int
+accumErrors :: Lens GitIntConfig GitIntConfig Int Int
 accumErrors = lens retryAccumErrors $ \r e -> r { retryAccumErrors = e }
 
-numRetries :: Lens RetryTConfig RetryTConfig R.RetryLimit R.RetryLimit
+numRetries :: Lens GitIntConfig GitIntConfig R.RetryLimit R.RetryLimit
 numRetries =
         lens (R.numRetries . retrySettings) $ \r n ->
             r { retrySettings = (retrySettings r) { R.numRetries = n } }
 
-backoff :: Lens RetryTConfig RetryTConfig Bool Bool
+backoff :: Lens GitIntConfig GitIntConfig Bool Bool
 backoff =
         lens (R.backoff . retrySettings) $ \r b ->
             r { retrySettings = (retrySettings r) { R.backoff = b } }
 
-baseDelay :: Lens RetryTConfig RetryTConfig Int Int
+baseDelay :: Lens GitIntConfig GitIntConfig Int Int
 baseDelay =
         lens (R.baseDelay . retrySettings) $ \r b ->
             r { retrySettings = (retrySettings r) { R.baseDelay = b } }
@@ -103,93 +107,138 @@ appendError AccumErrors{..} e =
         AccumErrors (Sum . (1+) $ getSum accumErrorCount)
                     (Data.DList.snoc accumErrorList e)
 
+type GithubInteraction = GithubInteractionT Error IO
+
 -- | This runs the enclosed EitherT and retries according to RetrySettings
 -- whenever it returns a Left value.
-newtype RetryT e m a = Retrier
-                     { runRetryT :: ReaderT RetryTConfig (EitherT e m) a
-                     }
+newtype GithubInteractionT e m a =
+        GHT { runGHT :: EitherT e (RWST GitIntConfig TaskList (AccumErrors e) m) a
+            }
 
-execRetryT :: RetryTConfig -> RetryT e m a -> m (Either e a)
-execRetryT s = runEitherT . flip runReaderT s . runRetryT
+evalGithubInteraction :: GithubInteraction a
+                      -> GitIntConfig
+                      -> IO (Either Error a, [TaskName])
+evalGithubInteraction = evalGithubInteractionT
+
+evalGithubInteractionT :: (Monad m, Functor m)
+                       => GithubInteractionT e m a
+                       -> GitIntConfig
+                       -> m (Either e a, [TaskName])
+evalGithubInteractionT gh c =
+        fmap toList <$> evalRWST (runEitherT (runGHT gh)) c mempty
+
+execGithubInteraction :: Monad m
+                      => GithubInteractionT e m a
+                      -> GitIntConfig
+                      -> AccumErrors e
+                      -> m (Either e a, TaskList)
+execGithubInteraction = evalRWST . runEitherT . runGHT
 
 bindRetry :: Monad m
-          => RetryT e m a
-          -> (a -> RetryT e m b)
-          -> RetryT e m b
-x `bindRetry` f = Retrier $ runRetryT . f =<< runRetryT x
+          => GithubInteractionT e m a
+          -> (a -> GithubInteractionT e m b)
+          -> GithubInteractionT e m b
+x `bindRetry` f = GHT $ runGHT . f =<< runGHT x
 
-retry :: (Monad m, MonadIO m) => RetryT e m b -> RetryT e m b
-retry m = Retrier $ ReaderT $ \s@RetryTC{..} ->
-           EitherT
-         . R.retrying retrySettings isLeft
-         $ runEitherT (runReaderT (runRetryT m) s)
+fst3 :: (a, b, c) -> a
+fst3 (a, _, _) = a
+
+retry :: (Monad m, MonadIO m)
+      => GithubInteractionT e m b
+      -> GithubInteractionT e m b
+retry m = GHT $ EitherT $ RWST $ \r s ->
+    R.retrying (retrySettings r) (isLeft . fst3)
+            $ runRWST (runEitherT (runGHT m)) r s
+
+accum :: Monad m
+      => a
+      -> GithubInteractionT e m a
+      -> GithubInteractionT e m a
+accum def m = GHT $ EitherT $ RWST $ \r s -> do
+    (a, s', w) <- runRWST (runEitherT (runGHT m)) r s
+    let (a', s'') = accumError (view accumErrors r) def a s'
+    return (a', s'', w)
+
+reacc :: (Monad m, MonadIO m)
+      => a
+      -> GithubInteractionT e m a
+      -> GithubInteractionT e m a
+reacc def = accum def . retry
+
+accumError :: Int -> a -> Either e a -> AccumErrors e
+           -> (Either e a, AccumErrors e)
+accumError _ _ r@(Right _) s = (r, s)
+accumError maxAccumCount def l@(Left e) s@AccumErrors{..}
+    | maxAccumCount > getSum accumErrorCount = (Right def, s')
+    | otherwise                              = (l, s')
+    where s' = appendError s e
 
 (>>=*) :: (Monad m, MonadIO m)
-       => RetryT e m a -> (a -> RetryT e m b) -> RetryT e m b
-x >>=* f =
-        Retrier $ ReaderT $ \r@RetryTC{..} -> do
-            x' <- runReaderT (runRetryT x) r
-            EitherT .
-                R.retrying retrySettings isLeft $
-                runEitherT (runReaderT (runRetryT (f x')) r)
+       => GithubInteractionT e m a
+       -> (a -> GithubInteractionT e m b)
+       -> GithubInteractionT e m b
+x >>=* f = do
+        x' <- x
+        retry $ f x'
 
-(>>*) :: (Monad m, MonadIO m) => RetryT e m a -> RetryT e m b -> RetryT e m b
+(>>*) :: (Monad m, MonadIO m)
+      => GithubInteractionT e m a
+      -> GithubInteractionT e m b
+      -> GithubInteractionT e m b
 x >>* y = x >>=* const y
 
-insertRetry :: Monad m => a -> RetryT e m a
-insertRetry = Retrier . return
+insertGH :: Monad m => a -> GithubInteractionT e m a
+insertGH = GHT . return
 
-insertEither :: (Monad m) => Either e a -> RetryT e m a
-insertEither = Retrier . lift . hoistEither
+insertEither :: (Monad m) => Either e a -> GithubInteractionT e m a
+insertEither = GHT . EitherT . return
+    where f x@Hole = undefined
+        -- GHT . lift . hoistEither
 
-instance (Monad m, MonadIO m) => Monad (RetryT e m) where
+instance (Monad m, MonadIO m) => Monad (GithubInteractionT e m) where
         x >>= f = x `bindRetry` f
-        return  = insertRetry
+        return  = insertGH
 
-instance (Monad m, MonadIO m) => MonadIO (RetryT e m) where
+instance (Monad m, MonadIO m) => MonadIO (GithubInteractionT e m) where
         liftIO = lift . liftIO
 
-instance MonadTrans (RetryT e) where
-        lift = Retrier . lift . lift
+instance MonadTrans (GithubInteractionT e) where
+        lift = GHT . lift . lift
 
-instance (Functor m, Monad m) => Functor (RetryT e m) where
-        fmap f = Retrier . fmap f . runRetryT
+instance (Functor m, Monad m) => Functor (GithubInteractionT e m) where
+        fmap f = GHT . fmap f . runGHT
 
-instance (Monad m, Functor m) => Applicative (RetryT e m) where
-        pure    = Retrier . pure
-        f <*> x = Retrier $ do
-            f' <- runRetryT f
-            x' <- runRetryT x
+instance (Monad m, Functor m) => Applicative (GithubInteractionT e m) where
+        pure    = GHT . pure
+        f <*> x = GHT $ do
+            f' <- runGHT f
+            x' <- runGHT x
             return $ f' x'
 
-type GithubInteraction = RetryT Error (WriterT TaskList IO)
+runGithubInteraction :: Int -> Int -> Bool -> Int -> GithubInteractionT e IO a
+                     -> IO (Either e a, [TaskName])
+runGithubInteraction accumErrors numRetries backoff baseDelay m =
+    evalGithubInteractionT m $ GitC accumErrors
+                                    $ R.RetrySettings (R.limitedRetries numRetries)
+                                                      backoff baseDelay
 
-runGithubInteraction :: Int -> Int -> Bool -> Int -> GithubInteraction a
-                     -> IO (Either Error a, TaskList)
-runGithubInteraction accumErrors numRetries backoff baseDelay =
-        runWriterT . execRetryT settings
-        where settings = RetryTC accumErrors
-                                 $ R.RetrySettings (R.limitedRetries numRetries)
-                                                   backoff baseDelay
-
-type RepoCommit = (Repo, Commit)
-
-hoistGH :: IO (Either Error a) -> GithubInteraction a
+hoistGH :: IO (Either Error a) -> GithubInteractionT Error IO a
 hoistGH action =
         insertEither =<< liftIO action
 
-hoistEitherT :: EitherT Error IO a -> GithubInteraction a
+hoistEitherT :: EitherT Error IO a -> GithubInteractionT Error IO a
 hoistEitherT = hoistGH . runEitherT
 
-logTask :: TaskName -> GithubInteraction ()
-logTask = lift . tell . singleton
+logTask :: Monad m => TaskName -> GithubInteractionT e m ()
+logTask = GHT . tell . singleton
 
-logTasks :: [TaskName] -> GithubInteraction ()
-logTasks = lift . tell . fromList
+logTasks :: Monad m => [TaskName] -> GithubInteractionT e m ()
+logTasks = GHT . tell . fromList
 
-logIO :: TaskName -> IO (Either Error a) -> GithubInteraction a
+logIO :: TaskName -> IO (Either Error a) -> GithubInteractionT Error IO a
 logIO task a = logTask task >> hoistGH a
 
-ghUserError :: String -> GithubInteraction a
+ghUserError :: String -> GithubInteractionT Error IO a
 ghUserError = hoistEitherT . left . UserError
 
+data Hole = Hole

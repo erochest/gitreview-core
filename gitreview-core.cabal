@@ -32,6 +32,7 @@ library
                      , dlist                == 0.5
                      , retry                == 0.2.*
                      , lens                 == 3.9.*
+                     , transformers         == 0.3.*
 
 test-suite gitreview-core-specs
   type:                exitcode-stdio-1.0

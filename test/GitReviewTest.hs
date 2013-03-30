@@ -70,5 +70,5 @@ main = do
 
         case item of
             Right x -> putStrLn "" >> putStrLn (shortLine x) >> print x
-            Left e  -> putStrLn $ "ERROR @" <> T.unpack (last $ toList log)  <> ": " <> show e
+            Left e  -> putStrLn $ "ERROR @" <> T.unpack (last log)  <> ": " <> show e
 
