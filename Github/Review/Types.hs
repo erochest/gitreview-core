@@ -47,6 +47,7 @@ import           Data.Monoid
 import qualified Data.Text as T
 import           Github.Data (Error(..), Repo, Commit)
 
+
 data GithubAccount = GithubUserName String
                    | GithubOrgName String
                    deriving (Show, Eq)
@@ -146,9 +147,10 @@ fst3 (a, _, _) = a
 retry :: (Monad m, MonadIO m)
       => GithubInteractionT e m b
       -> GithubInteractionT e m b
-retry m = GHT $ EitherT $ RWST $ \r s ->
-    R.retrying (retrySettings r) (isLeft . fst3)
-            $ runRWST (runEitherT (runGHT m)) r s
+retry m = GHT $ EitherT $ do
+    r <- asks retrySettings
+    R.retrying r isLeft $
+        runEitherT (runGHT m)
 
 accum :: Monad m
       => a
