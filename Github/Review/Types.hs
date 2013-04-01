@@ -47,6 +47,8 @@ import           Data.Monoid
 import qualified Data.Text as T
 import           Github.Data (Error(..), Repo, Commit)
 
+-- import Debug.Trace
+
 
 data GithubAccount = GithubUserName String
                    | GithubOrgName String
