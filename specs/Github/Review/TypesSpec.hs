@@ -17,14 +17,14 @@ import Test.QuickCheck
 spec :: Spec
 spec =
     describe "Github.Review.Types" $ do
-        describe "retry" $ do
+        describe "retry" $
             it "should retry the action 5 times." $ do
                 (out :: Either Error Int, log) <- runGithubInteraction 4 4 False 50 $
                     retry . logIO "logging" $ return . Left $ UserError "nope"
                 unless (length log == 5) $
                     assertFailure $ show out ++ "\t" ++ show log
 
-        describe "accum" $ do
+        describe "accum" $
             it "should allow the computation to fail 5 times." $ do
                 (out :: Either Error Int, log) <- runGithubInteraction 4 4 False 50 $ do
                     accum 1 . logIO "aaa" . return . Left $ UserError "aaa"
@@ -36,4 +36,24 @@ spec =
                 case out of
                     Left (UserError "eee") -> return ()
                     _ -> assertFailure $ show out ++ "\t" ++ show log
+
+        describe "reacc" $ do
+            it "should retry the action 5 times." $ do
+                (out :: Either Error Int, log) <- runGithubInteraction 4 4 False 50 $
+                    reacc 42 . logIO "logging" $ return . Left $ UserError "nope"
+                unless (length log == 5) $
+                    assertFailure $ show out ++ "\t" ++ show log
+
+            it "should allow the computation to fail 5 times." $ do
+                (out :: Either Error Int, log) <- runGithubInteraction 4 4 False 50 $ do
+                    reacc 1 . logIO "aaa" . return . Left $ UserError "aaa"
+                    reacc 2 . logIO "bbb" . return . Left $ UserError "bbb"
+                    reacc 3 . logIO "ccc" . return . Left $ UserError "ccc"
+                    reacc 4 . logIO "ddd" . return . Left $ UserError "ddd"
+                    reacc 5 . logIO "eee" . return . Left $ UserError "eee"
+                    reacc 6 . logIO "fff" . return . Left $ UserError "fff"
+                case out of
+                    Left (UserError "eee") -> return ()
+                    _ -> assertFailure $ show out ++ "\t" ++ show log
+
 
