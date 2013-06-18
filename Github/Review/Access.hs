@@ -37,7 +37,7 @@ getAccountRepos :: GithubAccount -> GithubInteraction [Repo]
 getAccountRepos (GithubUserName name) =
         reacc [] (logIO ("userRepos " <> T.pack name) $ userRepos name All)
 getAccountRepos (GithubOrgName name)  =
-        reacc [] (logIO ("orgnaizationRepos " <> T.pack name) $ organizationRepos name)
+        reacc [] (logIO ("organizationRepos " <> T.pack name) $ organizationRepos name)
 
 getRepoCommits :: Repo -> GithubInteraction [Commit]
 getRepoCommits (Repo{..}) =
