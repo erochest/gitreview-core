@@ -19,7 +19,7 @@ library
                      , Github.Review.Filters
                      , Github.Review.URI
                      , Paths_gitreview_core
-  build-depends:       base                 == 4.5.*
+  build-depends:       base                 == 4.6.*
                      , errors               == 1.4.*
                      , github               == 0.5.*
                      , time                 == 1.4.*
@@ -38,7 +38,7 @@ test-suite gitreview-core-specs
   type:                exitcode-stdio-1.0
   hs-source-dirs:      specs
   main-is:             GitReviewCoreSpecs.hs
-  build-depends:         base           == 4.5.*
+  build-depends:         base           == 4.6.*
                        , gitreview-core
                        , hspec          == 1.4.*
                        , QuickCheck     == 2.5.*
@@ -53,7 +53,7 @@ test-suite gitreview-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             GitReviewTest.hs
-  build-depends:         base       == 4.5.*
+  build-depends:         base       == 4.6.*
                        , gitreview-core
                        , github     == 0.5.*
                        , errors     == 1.4.*
